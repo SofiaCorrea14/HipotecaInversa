@@ -30,6 +30,7 @@ Proyecto desarrollado como simulador de hipoteca inversa, integrando conceptos d
 ```
 HipotecaInversa/
 │── docker-compose.yml          # Orquestación con Docker
+│── Jenkinsfile                 # Pipeline CI/CD
 │
 ├── backend/                    # Lógica del servidor
 │   ├── src/
@@ -39,13 +40,15 @@ HipotecaInversa/
 │   │   └── model/              # Modelos de datos
 │   ├── tests/                  # Pruebas unitarias
 │   ├── requirements.txt        # Dependencias Python
-│   └── Dockerfile              # Imagen backend
+│   ├── Dockerfile              # Imagen backend
+│   └── Jenkinsfile             # Pipeline backend
 │
 ├── frontend/                   # Interfaz de usuario
 │   ├── index.html
 │   ├── script.js
 │   ├── styles.css
-│   └── Dockerfile
+│   ├── Dockerfile              # Imagen frontend
+│   └── Jenkinsfile             # Pipeline frontend
 │
 └── ReverseMortgageSimulatorOriginal/  # Versión anterior del simulador
 ```
@@ -135,9 +138,6 @@ docker pull sofiac14/reverse-mortgage-backend:final
 
 ---
 
-## Licencia
-
-Este proyecto es de código abierto y está disponible bajo los términos de la licencia MIT.
 
 ## Contacto
 
