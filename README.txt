@@ -107,7 +107,8 @@ Trigger automático en push a ramas main/develop
 
 Credenciales seguras para Docker Hub
 
-Imágenes Docker Publicadas 🐳
+##Imágenes Docker Publicadas 🐳
+
 Frontend
 bash
 docker pull sofiac14/reverse-mortgage-frontend:latest
