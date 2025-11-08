@@ -7,4 +7,7 @@ Kivy==2.3.0
 Pygments==2.18.0
 requests==2.32.3
 urllib3==2.2.3
+
 psycopg2-binary==2.9.10
+pytest==7.4.0
+pytest-cov==4.1.0
