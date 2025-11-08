@@ -138,7 +138,3 @@ docker pull sofiac14/reverse-mortgage-backend:final
 
 ---
 
-
-## Contacto
-
-Para más información, contacta a los autores del proyecto.
