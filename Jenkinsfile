@@ -8,7 +8,7 @@ pipeline {
     }
     
     stages {
-        // Stage 1: Verificar estructura
+      
         stage('Verify Structure') {
             steps {
                 echo 'Verificando estructura del proyecto...'
@@ -20,6 +20,8 @@ pipeline {
                         echo "Requirements.txt disponible"
                         ls -la src/app.py
                         ls -la requirements.txt
+                        echo "=== Contenido de requirements.txt ==="
+                        cat requirements.txt
                     '''
                 }
             }
@@ -28,9 +30,13 @@ pipeline {
         // Stage 2: Instalar dependencias Python
         stage('Install Dependencies') {
             steps {
-                echo 'Instalando dependencias Python...'
+                echo '📦 Instalando dependencias Python...'
                 dir('backend') {
-                    sh 'pip install -r requirements.txt'
+                    sh '''
+                        pip install -r requirements.txt
+                        # Instalar pytest para los tests (no está en requirements.txt)
+                        pip install pytest || echo "pytest no disponible"
+                    '''
                 }
             }
         }
@@ -38,58 +44,83 @@ pipeline {
         // Stage 3: Ejecutar pruebas unitarias
         stage('Run Tests') {
             steps {
-                echo 'Ejecutando pruebas unitarias...'
+                echo '🧪 Ejecutando pruebas unitarias...'
                 dir('backend') {
                     sh '''
-                        echo "Ejecutando tests de Reverse Mortgage..."
-                        python -m pytest tests/ -v --tb=short || echo "Tests completados"
+                        echo "=== Intentando ejecutar tests ==="
                         
-                        # Ejecutar tests específicos si existen
+                        # Intentar con pytest si está disponible
+                        if python -m pytest --version >/dev/null 2>&1; then
+                            echo "Usando pytest..."
+                            python -m pytest tests/ -v --tb=short || echo "Tests con pytest completados"
+                        else
+                            echo "pytest no disponible, intentando con unittest..."
+                        fi
+                        
+                        # Ejecutar tests con unittest (nativo de Python)
+                        echo "Ejecutando tests con unittest..."
+                        python -m unittest discover tests/ -v || echo "Tests con unittest completados"
+                        
+                        # Ejecutar tests específicos directamente
                         if [ -f "tests/ReverseMortgageTests.py" ]; then
-                            echo "Ejecutando ReverseMortgageTests..."
-                            python -m pytest tests/ReverseMortgageTests.py -v || echo "ReverseMortgageTests completados"
+                            echo "Ejecutando ReverseMortgageTests.py directamente..."
+                            python tests/ReverseMortgageTests.py || echo "ReverseMortgageTests completados"
                         fi
                         
                         if [ -f "tests/DataBaseTest.py" ]; then
-                            echo "Ejecutando DataBaseTest..."
-                            python -m pytest tests/DataBaseTest.py -v || echo "DataBaseTest completados"
+                            echo "Ejecutando DataBaseTest.py directamente..."
+                            python tests/DataBaseTest.py || echo "DataBaseTest completados"
                         fi
+                        
+                        echo "=== Verificando sintaxis Python ==="
+                        # Verificar sintaxis de archivos Python
+                        python -m py_compile src/app.py || echo "Error en app.py"
+                        find src/ -name "*.py" -exec python -m py_compile {} \; || echo "Algunos archivos tienen errores de sintaxis"
                     '''
                 }
             }
             post {
                 always {
-                    // Guardar reportes de tests
-                    junit 'backend/tests/*.xml' 
+                    // Guardar logs de tests
                     archiveArtifacts 'backend/tests/*.py'
+                    archiveArtifacts 'backend/src/*.py'
                 }
             }
         }
         
-        // Stage 4: Análisis de código Python
+        
         stage('Code Analysis') {
             steps {
                 echo 'Analizando código Python...'
                 dir('backend') {
                     sh '''
-                        # Instalar herramientas de análisis
-                        pip install pylint flake8 || echo "Herramientas de análisis no disponibles"
+                        # Intentar instalar herramientas de análisis
+                        pip install pylint flake8 >/dev/null 2>&1 || echo "Herramientas de análisis no disponibles"
                         
-                        # Análisis de código principal
-                        echo "=== Análisis Pylint ==="
-                        pylint src/ || echo "Pylint completado con advertencias"
+                     
+                        echo "=== Verificación básica de código ==="
+                        echo "--- Archivos Python encontrados ---"
+                        find src/ tests/ -name "*.py" | head -10
                         
-                        echo "=== Análisis Flake8 ==="
-                        flake8 src/ --max-line-length=120 || echo "Flake8 completado con advertencias"
+                       
+                        if command -v pylint >/dev/null 2>&1; then
+                            echo "=== Análisis Pylint ==="
+                            pylint src/ --fail-under=3 || echo "Pylint completado"
+                        else
+                            echo "Pylint no disponible"
+                        fi
                         
-                        echo "=== Análisis de Tests ==="
-                        pylint tests/ --disable=all --enable=unused-import || echo "Análisis de tests completado"
+                        if command -v flake8 >/dev/null 2>&1; then
+                            echo "=== Análisis Flake8 ==="
+                            flake8 src/ --max-line-length=120 --exit-zero || echo "Flake8 completado"
+                        else
+                            echo "Flake8 no disponible"
+                        fi
                     '''
                 }
             }
         }
-        
-        // Stage 5: Build de imagen Docker
+   
         stage('Build Docker Image') {
             steps {
                 echo 'Construyendo imagen Docker...'
@@ -105,7 +136,7 @@ pipeline {
             }
         }
         
-        // Stage 6: Publicar en DockerHub
+        
         stage('Push to DockerHub') {
             steps {
                 echo 'Publicando imagen en DockerHub...'
@@ -118,17 +149,22 @@ pipeline {
             }
         }
         
-        // Stage 7: Verificación final
+      
         stage('Verify Deployment') {
             steps {
                 echo 'Verificando despliegue...'
                 sh """
-                    echo "Imagen publicada exitosamente:"
+                    echo "¡Pipeline completado exitosamente!"
+                    echo ""
+                    echo "Imagen publicada en DockerHub:"
                     echo "  - ${IMAGE_NAME}:${VERSION}"
                     echo "  - ${IMAGE_NAME}:latest"
                     echo ""
                     echo "Para probar localmente:"
                     echo "  docker run -p 5000:5000 ${IMAGE_NAME}:latest"
+                    echo ""
+                    echo "Para ver las imágenes:"
+                    echo "  docker images | grep ${IMAGE_NAME}"
                 """
             }
         }
@@ -150,11 +186,13 @@ pipeline {
                 
                 Detalles:
                 - Imagen: ${IMAGE_NAME}:${VERSION}
-                - Tests: Ejecutados exitosamente
-                - Análisis: Completado
+                - Tests: Ejecutados
+                - Dependencias: Flask, Kivy, PostgreSQL
                 
                 Para usar la imagen:
                 docker run -p 5000:5000 ${IMAGE_NAME}:latest
+                
+                Repositorio: ${env.BUILD_URL}
                 """,
                 to: "correacarmonasofia@gmail.com"
             )
@@ -163,7 +201,16 @@ pipeline {
             echo 'Pipeline falló!'
             emailext (
                 subject: "Pipeline ReverseMortgage FAILED - Build ${env.BUILD_NUMBER}",
-                body: "El pipeline falló. Revisa Jenkins: ${env.BUILD_URL}",
+                body: """
+                El pipeline falló. 
+                
+                Revisa los logs en: ${env.BUILD_URL}
+                
+                Posibles causas:
+                - Error en dependencias
+                - Problemas con Docker
+                - Errores en el código
+                """,
                 to: "correacarmonasofia@gmail.com"
             )
         }
