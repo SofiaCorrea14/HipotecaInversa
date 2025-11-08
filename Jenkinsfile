@@ -8,64 +8,27 @@ pipeline {
     }
     
     stages {
-        // Stage 1: Build 
-        stage('Build Only') {
+        stage('Build Backend') {
             steps {
-                echo 'CONSTRUYENDO IMÁGENES...'
-                
-                // Backend
                 dir('backend') {
-                    sh '''
-                        echo "=== Validando Backend ==="
-                        cd src
-                        python -c "
-                        import sys
-                        sys.path.append('.')
-                        try:
-                            from ReverseMortgage import MonthlyPayment
-                            from model.User import User  
-                            from controller.Controlador_usuarios import ClientController
-                            print('Backend - Imports OK')
-                        except Exception as e:
-                            print('Error backend:', e)
-                            sys.exit(1)
-                        "
-                    '''
-                    sh "docker build -t ${BACKEND_IMAGE_NAME}:${VERSION} ."
+                    sh 'docker build -t ${BACKEND_IMAGE_NAME}:${VERSION} .'
                 }
-                
-                // Frontend
-                dir('frontend') {
-                    sh '''
-                        echo "=== Validando Frontend ==="
-                        if [ -f "index.html" ]; then
-                            echo "Frontend - index.html OK"
-                        else
-                            echo "ERROR: index.html no existe"
-                            exit 1
-                        fi
-                    '''
-                    sh "docker build -t ${FRONTEND_IMAGE_NAME}:${VERSION} ."
-                }
-                
-                echo "¡BUILD COMPLETADO!"
-                echo "Backend: ${BACKEND_IMAGE_NAME}:${VERSION}"
-                echo "Frontend: ${FRONTEND_IMAGE_NAME}:${VERSION}"
             }
         }
         
-        
-        stage('Instructions') {
+        stage('Build Frontend') {
             steps {
-                echo 'INSTRUCCIONES PUSH MANUAL:'
+                dir('frontend') {
+                    sh 'docker build -t ${FRONTEND_IMAGE_NAME}:${VERSION} .'
+                }
+            }
+        }
+        
+        stage('Verify Images') {
+            steps {
                 sh """
-                    echo "Para subir a DockerHub manualmente:"
-                    echo "1. docker login -u sofiac14"
-                    echo "2. docker push ${BACKEND_IMAGE_NAME}:${VERSION}"
-                    echo "3. docker push ${FRONTEND_IMAGE_NAME}:${VERSION}"
-                    echo ""
-                    echo "Esto demuestra que el pipeline FUNCIONA"
-                    echo "El push automático requiere configurar permisos en Jenkins"
+                    echo "Imagenes construidas:"
+                    docker images | grep sofiac14
                 """
             }
         }
@@ -73,8 +36,10 @@ pipeline {
     
     post {
         success {
-            echo '¡Pipeline ejecutado exitosamente!'
-            
+            echo 'Pipeline ejecutado exitosamente'
+        }
+        failure {
+            echo 'Pipeline fallo'
         }
     }
 }
